@@ -7,7 +7,7 @@ author: Harrison Mamin
 Overview
 --------
 
-Tools for Eexploratory data analysis with Pandas
+Tools for Exploratory data analysis with Pandas
 
 Installation / Usage
 --------------------

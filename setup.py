@@ -20,8 +20,8 @@ dependency_links = [x.strip().replace('git+', '') for x in all_reqs if x.startsw
 setup(
     name='pandas_htools',
     version=__version__,
-    description='Tools for Eexploratory data analysis with Pandas',
-    long_description=long_description,
+    description='Tools for Exploratory data analysis with Pandas',
+    long_description='',
     url='https://github.com/hdmamin/pandas_htools',
     download_url='https://github.com/hdmamin/pandas_htools/tarball/' + __version__,
     license='BSD',
