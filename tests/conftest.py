@@ -9,13 +9,14 @@ def df20():
 
 
 @pytest.fixture(scope='session')
+def df_rep():
+    return pd.concat((df20, df20.head(10), df.head(5)), axis=0)\
+             .sample(frac=1, replace=False)
+
+
+@pytest.fixture(scope='session')
 def df_store():
     return pd.read_excel('~/data/superstore.xls')
-
-
-# @pytest.fixture(scope='session', params=[(df20, 0), (df_store, 0)])
-# def df_sizes(request):
-#     return request.param
 
 
 @pytest.fixture

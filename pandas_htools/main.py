@@ -239,7 +239,7 @@ def vcounts(df_col, **kwargs):
 
     Returns
     --------
-    pd.Series
+    pd.DataFrame
 
     Examples
     ---------
@@ -247,7 +247,9 @@ def vcounts(df_col, **kwargs):
     """
     if 'normalize' in kwargs.keys():
         del kwargs['normalize']
-    return pd.merge(df_col.value_counts(**kwargs),
-                    df_col.value_counts(normalize=True, **kwargs),
-                    'left', left_index=True, right_index=True,
-                    suffixes=['', '_normed'])
+    df = pd.merge(df_col.value_counts(**kwargs),
+                  df_col.value_counts(normalize=True, **kwargs),
+                  'left', left_index=True, right_index=True,
+                  suffixes=['_raw_count', '_normed_count'])\
+           .reset_index()
+    return df.rename({'index': df.columns[1].split('_')[0]}, axis=1)
