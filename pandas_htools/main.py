@@ -50,10 +50,13 @@ def filter_by_count(df, col, method, value, norm=False):
     Examples
     ---------
     Return rows containing users who appear at least 5 times:
-    df.filter_by_count('user_id', 5, '>=')
+    df.filter_by_count('user_id', '>=', 5)
 
     Return rows containing users who appear only once:
-    df.filter_by_count('user_id', 1, '=')
+    df.filter_by_count('user_id', '=', 1)
+
+    Return rows containing users who make up less than 20% of rows:
+    df.filter_by_count('user_id', '<', .2, True)
     """
     operation = {'=': operator.eq,
                  '>': operator.gt,
