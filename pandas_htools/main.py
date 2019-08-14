@@ -1,10 +1,12 @@
+from functools import partial
 import operator
 import pandas as pd
 import pandas_flavor as pf
+from sklearn.model_selection import KFold
 
 
 @pf.register_dataframe_method
-def ends(df, n=5):
+def ends(df, n=3):
     """Display the first and last few rows of a dataframe.
 
     Parameters
@@ -17,8 +19,7 @@ def ends(df, n=5):
     --------
     pd.DataFrame
     """
-    if n < 0:
-        raise ValueError('n must be positive.')
+    assert n > 0, 'n must be positive.'
 
     if df.shape[0] < 2 * n:
         return df
@@ -26,11 +27,11 @@ def ends(df, n=5):
 
 
 @pf.register_dataframe_method
-def filter_by_count(df, col, method, value):
+def filter_by_count(df, col, method, value, norm=False):
     """Filter a dataframe to return a subset of rows determined by their
     value_counts(). For example, we can return rows with users who appear
     at least 5 times in the dataframe, or with users who appear less than 10
-    times, or who appear greater than or equal to 100 times.
+    times, or who appear exactly once.
 
     Parameters
     -----------
@@ -60,13 +61,18 @@ def filter_by_count(df, col, method, value):
                  '>=': operator.ge,
                  '<=': operator.le
                 }
-    counts = df[col].value_counts().loc[lambda x: operation[method](x, value)]
+    counts = df[col].value_counts(norm).loc[lambda x:
+                                            operation[method](x, value)]
     return df[df[col].isin(counts.index)]
 
 
 @pf.register_dataframe_method
-def top_cats(df, col, categories=None, threshold=None):
+def top_categories(df, col, categories=None, threshold=None):
     """Filter a dataframe to return rows containing the most common categories.
+    This can be useful when a column has many possible values, some of which
+    are extremely rare, and we want to consider only the ones that occur
+    relatively frequently.
+
     The user can either specify the number of categories to include or set
     a threshold for the minimum number of occurrences. One of `categories` and
     `threshold` should be None, while the other should be an integer.
@@ -81,6 +87,10 @@ def top_cats(df, col, categories=None, threshold=None):
     threshold: int, None
         Optional - Value count threshold to include (i.e. all categories that
         occur at least 10 times).
+
+    Returns
+    --------
+    pd.DataFrame
     """
     if categories is not None:
         top = df[col].value_counts(ascending=False).head(categories).index
@@ -89,14 +99,157 @@ def top_cats(df, col, categories=None, threshold=None):
         return df.groupby(col).filter(lambda x: len(x) >= threshold)
 
 
+# @pf.register_dataframe_method
+# def impute(df, col, method='mean'):
+#     """Fill null values in the specified column, then add an additional column
+#     specifying whether the first column was originally null. This can be useful
+#     in certain machine learning problems if the fact that a value is missing
+#     may indicate something about the example.
+#
+#     For instance, we might try to predict student test scores, where one
+#     feature column records the survey results of asking the student's parent to
+#     rate their satisfaction with the teacher on a scale of 1-5. If the value is
+#     missing, that means the parent didn't take the survey, and therefore may
+#     not be very involved with the student's academics. This could be highly
+#     relevant information that we don't want to discard, which we would if we
+#     simply imputed the missing value and made no record of it.
+#
+#     Parameters
+#     -----------
+#     # cols: list[str]
+#     #     One or more column names where we need to fill null values.
+#
+#     col: str
+#         Name of df column to fill null values for.
+#     method: str
+#         One of ('mean', 'median', 'mode'). More complex methods, such as
+#         building a model to predict the missing values based on other features,
+#         must be done manually.
+#
+#     Returns
+#     --------
+#     pd.DataFrame
+#     """
+#     # Consider how to handle inplace vs not; should both options be
+#     # available? Maybe need to use df copy?
+#     df[col + '_isnull'] = df[col].isnull()
+#     fill_val = getattr(df[col], method)()
+#     df[col].fillna(fill_val, inplace=True)
+#     return df
+#
+#     # started by just building for 1 col; think about whether to allow list of
+#     # colnames or not. Update docstring accordingly.
+#     # for col in cols:
+#     #     df[col + '_isnull'] = df[col].isnull()
+#     #     fill_val = getattr(df[col], method)()
+#     #     df[col].fillna(fill_val, inplace=True)
+
+
+@pf.register_dataframe_method
+def target_encode(df, x, y, n, mode='mean', shuffle=True, state=None,
+                  inplace=False, df_val=None):
+    """Compute target encoding based on one or more feature columns.
+
+    Parameters
+    -----------
+    x: str, list[str]
+        Name of columns to group by.
+    y: str
+        Name of target variable column.
+    n: int
+        Number of folds for regularized version. Must be >1.
+    mode: str
+        Specifies the type of aggregation to use on the target column.
+        Typically this would be mean or occasionally median, but all the
+        standard dataframe aggregation functions are available:
+        ('mean', 'median', 'min', 'max', 'std', 'var', 'skew').
+    shuffle: bool
+        Specifies whether to shuffle the dataframe when creating folds of the
+        data. This would be important, for instance, if the dataframe is
+        ordered by a user_id, where each user has multiple rows. Here, a lack
+        of shuffling means that all of a user's rows are likely to end up in
+        the same fold. This effectively eliminates the value of creating the
+        folds in the first place.
+    state: None, int
+        If state is an integer and shuffle is True, the folds produced by
+        KFold will be repeatable. If state is None (the default) and shuffle
+        is True, shuffling will be different every time.
+    inplace: bool
+        Specifies whether to do the operation in place. The inplace version
+        does not return anything. When inplace==False, the dataframe is
+        returned.
+    df_val: None, pd.DataFrame
+        Validation set (optional). If provided, naive (i.e. un-regularized)
+        target encoding will be performed using the labels from the original
+        (i.e. training) df. NOTE: Inplace must be True when passing in df_val,
+        because we only return the original df.
+
+    Returns
+    --------
+    pd.DataFrame or None
+    """
+    assert df_val is None or inplace, 'To encode df_val, inplace must be True.'
+
+    if not inplace:
+        df = df.copy()
+    new_col = f'{y}_enc'
+    df[new_col] = global_agg = getattr(df[y], mode)()
+
+    # Compute target encoding on n-1 folds and map back to nth fold.
+    for train_idx, val_idx in KFold(n, shuffle, state).split(df):
+        enc = getattr(df.iloc[train_idx, :].groupby(x)[y], mode)()
+        df.loc[:, new_col].iloc[val_idx] = df.loc[:, x].iloc[val_idx].map(enc)
+
+    # Encode validation set in place if it is passed in. No folds are used.
+    if df_val is not None:
+        enc = getattr(df.groupby(x)[y], mode)()
+        df_val[new_col] = df_val[x].map(enc).fillna(global_agg)
+
+    if not inplace:
+        return df
+
+
+@pf.register_dataframe_method
+def grouped_mode(df, xs, y):
+    """Return the most common value in column y for each value or combination
+    of values of xs. Note that this can be slow, especially when passing in
+    multiple x columns.
+
+    Parameters
+    -----------
+    xs: list[str]
+        One or more column names to group by.
+    y: str
+        Column to calculate the modes from.
+
+    Returns
+    --------
+    pd.Series
+    """
+    return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
+
+
 @pf.register_series_method
-def vcounts(df_col):
+def vcounts(df_col, **kwargs):
     """Return both the raw and normalized value_counts of a series.
+
+    Parameters
+    -----------
+    Most parameters in value_counts() are available (i.e. `sort`, `ascending`,
+    `dropna`), with the obvious exception of `normalize` since that is handled
+    automatically.
+
+    Returns
+    --------
+    pd.Series
 
     Examples
     ---------
     df.colname.vcounts()
     """
-    return pd.merge(df_col.value_counts(), df_col.value_counts(normalize=True),
+    if 'normalize' in kwargs.keys():
+        del kwargs['normalize']
+    return pd.merge(df_col.value_counts(**kwargs),
+                    df_col.value_counts(normalize=True, **kwargs),
                     'left', left_index=True, right_index=True,
                     suffixes=['', '_normed'])
