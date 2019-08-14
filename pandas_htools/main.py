@@ -99,50 +99,45 @@ def top_categories(df, col, categories=None, threshold=None):
         return df.groupby(col).filter(lambda x: len(x) >= threshold)
 
 
-# @pf.register_dataframe_method
-# def impute(df, col, method='mean'):
-#     """Fill null values in the specified column, then add an additional column
-#     specifying whether the first column was originally null. This can be useful
-#     in certain machine learning problems if the fact that a value is missing
-#     may indicate something about the example.
-#
-#     For instance, we might try to predict student test scores, where one
-#     feature column records the survey results of asking the student's parent to
-#     rate their satisfaction with the teacher on a scale of 1-5. If the value is
-#     missing, that means the parent didn't take the survey, and therefore may
-#     not be very involved with the student's academics. This could be highly
-#     relevant information that we don't want to discard, which we would if we
-#     simply imputed the missing value and made no record of it.
-#
-#     Parameters
-#     -----------
-#     # cols: list[str]
-#     #     One or more column names where we need to fill null values.
-#
-#     col: str
-#         Name of df column to fill null values for.
-#     method: str
-#         One of ('mean', 'median', 'mode'). More complex methods, such as
-#         building a model to predict the missing values based on other features,
-#         must be done manually.
-#
-#     Returns
-#     --------
-#     pd.DataFrame
-#     """
-#     # Consider how to handle inplace vs not; should both options be
-#     # available? Maybe need to use df copy?
-#     df[col + '_isnull'] = df[col].isnull()
-#     fill_val = getattr(df[col], method)()
-#     df[col].fillna(fill_val, inplace=True)
-#     return df
-#
-#     # started by just building for 1 col; think about whether to allow list of
-#     # colnames or not. Update docstring accordingly.
-#     # for col in cols:
-#     #     df[col + '_isnull'] = df[col].isnull()
-#     #     fill_val = getattr(df[col], method)()
-#     #     df[col].fillna(fill_val, inplace=True)
+@pf.register_dataframe_method
+def impute(df, col, method='mean', inplace=False, dummy=True):
+    """Fill null values in the specified column, then add an additional column
+    specifying whether the first column was originally null. This can be useful
+    in certain machine learning problems if the fact that a value is missing
+    may indicate something about the example.
+
+    For instance, we might try to predict student test scores, where one
+    feature column records the survey results of asking the student's parent to
+    rate their satisfaction with the teacher on a scale of 1-5. If the value is
+    missing, that means the parent didn't take the survey, and therefore may
+    not be very involved with the student's academics. This could be highly
+    relevant information that we don't want to discard, which we would if we
+    simply imputed the missing value and made no record of it.
+
+    Parameters
+    -----------
+    col: str
+        Name of df column to fill null values for.
+    method: str
+        One of ('mean', 'median', 'mode'). More complex methods, such as
+        building a model to predict the missing values based on other features,
+        must be done manually.
+
+    Returns
+    --------
+    pd.DataFrame
+    """
+    if not inplace:
+        df = df.copy()
+
+    # If adding a dummy column, it must be created before imputing null values.
+    if dummy:
+        df[col + '_isnull'] = df[col].isnull() * 1
+    fill_val = getattr(df[col], method)()
+    df[col].fillna(fill_val, inplace=True)
+
+    if not inplace:
+        return df
 
 
 @pf.register_dataframe_method
