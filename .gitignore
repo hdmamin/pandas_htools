@@ -40,3 +40,4 @@ docs/_build
 output/
 .ipynb_checkpoints/
 notebooks/
+.DS_Store/
