@@ -70,44 +70,31 @@ def filter_by_count(df, col, method, value, norm=False):
 
 
 @pf.register_dataframe_method
-def top_categories(df, col, categories=None, threshold=None):
-    """Filter a dataframe to return rows containing the most common categories.
-    This can be useful when a column has many possible values, some of which
-    are extremely rare, and we want to consider only the ones that occur
-    relatively frequently.
-
-    The user can either specify the number of categories to include or set
-    a threshold for the minimum number of occurrences. One of `categories` and
-    `threshold` should be None, while the other should be an integer.
+def grouped_mode(df, xs, y):
+    """Return the most common value in column y for each value or combination
+    of values of xs. Note that this can be slow, especially when passing in
+    multiple x columns.
 
     Parameters
     -----------
-    col: str
-        Name of column to filter on.
-    categories: int, None
-        Optional - # of categories to include (i.e. top 5 most common
-        categories).
-    threshold: int, None
-        Optional - Value count threshold to include (i.e. all categories that
-        occur at least 10 times).
+    xs: list[str]
+        One or more column names to group by.
+    y: str
+        Column to calculate the modes from.
 
     Returns
     --------
-    pd.DataFrame
+    pd.Series
     """
-    if categories is not None:
-        top = df[col].value_counts(ascending=False).head(categories).index
-        return df[df[col].isin(top)]
-    if threshold is not None:
-        return df.groupby(col).filter(lambda x: len(x) >= threshold)
+    return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
 
 
 @pf.register_dataframe_method
 def impute(df, col, method='mean', inplace=False, dummy=True):
-    """Fill null values in the specified column, then add an additional column
-    specifying whether the first column was originally null. This can be useful
-    in certain machine learning problems if the fact that a value is missing
-    may indicate something about the example.
+    """Fill null values in the specified column, then optionally add an
+    additional column specifying whether the first column was originally null.
+    This can be useful in certain machine learning problems if the fact that a
+    value is missing may indicate something about the example.
 
     For instance, we might try to predict student test scores, where one
     feature column records the survey results of asking the student's parent to
@@ -125,6 +112,11 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
         One of ('mean', 'median', 'mode'). More complex methods, such as
         building a model to predict the missing values based on other features,
         must be done manually.
+    inplace: bool
+        Specify whether to perform the operation in place (default False).
+    dummy: bool
+        Specify whether to add a dummy column recording whether the value was
+        initially null (default True).
 
     Returns
     --------
@@ -208,23 +200,36 @@ def target_encode(df, x, y, n, mode='mean', shuffle=True, state=None,
 
 
 @pf.register_dataframe_method
-def grouped_mode(df, xs, y):
-    """Return the most common value in column y for each value or combination
-    of values of xs. Note that this can be slow, especially when passing in
-    multiple x columns.
+def top_categories(df, col, categories=None, threshold=None):
+    """Filter a dataframe to return rows containing the most common categories.
+    This can be useful when a column has many possible values, some of which
+    are extremely rare, and we want to consider only the ones that occur
+    relatively frequently.
+
+    The user can either specify the number of categories to include or set
+    a threshold for the minimum number of occurrences. One of `categories` and
+    `threshold` should be None, while the other should be an integer.
 
     Parameters
     -----------
-    xs: list[str]
-        One or more column names to group by.
-    y: str
-        Column to calculate the modes from.
+    col: str
+        Name of column to filter on.
+    categories: int, None
+        Optional - # of categories to include (i.e. top 5 most common
+        categories).
+    threshold: int, None
+        Optional - Value count threshold to include (i.e. all categories that
+        occur at least 10 times).
 
     Returns
     --------
-    pd.Series
+    pd.DataFrame
     """
-    return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
+    if categories is not None:
+        top = df[col].value_counts(ascending=False).head(categories).index
+        return df[df[col].isin(top)]
+    if threshold is not None:
+        return df.groupby(col).filter(lambda x: len(x) >= threshold)
 
 
 @pf.register_series_method
