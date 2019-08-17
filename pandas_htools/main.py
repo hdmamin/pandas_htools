@@ -86,7 +86,10 @@ def grouped_mode(df, xs, y):
     --------
     pd.Series
     """
-    return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
+    # return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
+    return df.dropna(subset=[y])\
+             .groupby(xs)[y]\
+             .agg(lambda x: pd.Series.mode(x)[0])
 
 
 @pf.register_dataframe_method
