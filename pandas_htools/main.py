@@ -1,4 +1,5 @@
 from functools import partial
+import numpy as np
 import operator
 import pandas as pd
 import pandas_flavor as pf
@@ -139,7 +140,7 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
 
 
 @pf.register_dataframe_method
-def target_encode(df, x, y, n, mode='mean', shuffle=True, state=None,
+def target_encode(df, x, y, n=5, mode='mean', shuffle=True, state=None,
                   inplace=False, df_val=None):
     """Compute target encoding based on one or more feature columns.
 
@@ -186,12 +187,16 @@ def target_encode(df, x, y, n, mode='mean', shuffle=True, state=None,
     if not inplace:
         df = df.copy()
     new_col = f'{y}_enc'
-    df[new_col] = global_agg = getattr(df[y], mode)()
+    # Even if we initialize new_col w/ global agg, null values may be
+    # re-introduced during the map operation. Just fill nulls at end.
+    df[new_col] = np.nan
+    global_agg = getattr(df[y], mode)()
 
     # Compute target encoding on n-1 folds and map back to nth fold.
     for train_idx, val_idx in KFold(n, shuffle, state).split(df):
         enc = getattr(df.iloc[train_idx, :].groupby(x)[y], mode)()
         df.loc[:, new_col].iloc[val_idx] = df.loc[:, x].iloc[val_idx].map(enc)
+    df[new_col].fillna(global_agg, inplace=True)
 
     # Encode validation set in place if it is passed in. No folds are used.
     if df_val is not None:

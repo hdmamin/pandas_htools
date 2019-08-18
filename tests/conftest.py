@@ -8,8 +8,9 @@ def df20():
     return pd.DataFrame(np.arange(100).reshape((20, 5)), columns=list('abcde'))
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def df_mta():
+    """Use module scope because some target_encode() tests edit in place."""
     return pd.read_csv('~/data/MTA_Hourly.csv')
 
 
