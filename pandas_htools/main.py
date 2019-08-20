@@ -87,7 +87,6 @@ def grouped_mode(df, xs, y):
     --------
     pd.Series
     """
-    # return df.groupby(xs)[y].agg(lambda x: pd.Series.mode(x)[0])
     return df.dropna(subset=[y])\
              .groupby(xs)[y]\
              .agg(lambda x: pd.Series.mode(x)[0])
@@ -140,7 +139,7 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
 
 
 @pf.register_dataframe_method
-def target_encode(df, x, y, n=5, mode='mean', shuffle=True, state=None,
+def target_encode(df, x, y, n=5, stat='mean', shuffle=True, state=None,
                   inplace=False, df_val=None):
     """Compute target encoding based on one or more feature columns.
 
@@ -152,7 +151,7 @@ def target_encode(df, x, y, n=5, mode='mean', shuffle=True, state=None,
         Name of target variable column.
     n: int
         Number of folds for regularized version. Must be >1.
-    mode: str
+    stat: str
         Specifies the type of aggregation to use on the target column.
         Typically this would be mean or occasionally median, but all the
         standard dataframe aggregation functions are available:
@@ -186,22 +185,31 @@ def target_encode(df, x, y, n=5, mode='mean', shuffle=True, state=None,
 
     if not inplace:
         df = df.copy()
-    new_col = f'{y}_enc'
-    # Even if we initialize new_col w/ global agg, null values may be
-    # re-introduced during the map operation. Just fill nulls at end.
-    df[new_col] = np.nan
-    global_agg = getattr(df[y], mode)()
+    new_col = f"{'-'.join(x)}_{stat}_enc"
+    global_agg = getattr(df[y], stat)()
+    df[new_col] = global_agg
 
-    # Compute target encoding on n-1 folds and map back to nth fold.
+    def indexer(row):
+        """Map a dataframe row to its grouped target value. When we group by
+        multiple columns, our groupby object `enc` will require a tuple index.
+
+        Note: When benchmarking function speed, it was slightly faster when
+        leaving the if statement inside this function. Not sure if this is a
+        coincidence but it at least seems like it's not hurting performance.
+        """
+        key = row[0] if len(x) == 1 else tuple(row)
+        return enc.get(key, global_agg)
+
+    #  Compute target encoding on n-1 folds and map back to nth fold.
     for train_idx, val_idx in KFold(n, shuffle, state).split(df):
-        enc = getattr(df.iloc[train_idx, :].groupby(x)[y], mode)()
-        df.loc[:, new_col].iloc[val_idx] = df.loc[:, x].iloc[val_idx].map(enc)
-    df[new_col].fillna(global_agg, inplace=True)
+        enc = getattr(df.iloc[train_idx, :].groupby(x)[y], stat)()
+        mapped = df.loc[:, x].iloc[val_idx].apply(indexer, axis=1)
+        df.loc[:, new_col].iloc[val_idx] = mapped
 
     # Encode validation set in place if it is passed in. No folds are used.
     if df_val is not None:
-        enc = getattr(df.groupby(x)[y], mode)()
-        df_val[new_col] = df_val[x].map(enc).fillna(global_agg)
+        enc = getattr(df.groupby(x)[y], stat)()
+        df_val[new_col] = df_val[x].apply(indexer, axis=1)
 
     if not inplace:
         return df
