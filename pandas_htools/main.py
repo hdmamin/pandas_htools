@@ -182,10 +182,12 @@ def target_encode(df, x, y, n=5, stat='mean', shuffle=True, state=None,
     pd.DataFrame or None
     """
     assert df_val is None or inplace, 'To encode df_val, inplace must be True.'
+    # Prevents SettingWithCopy warning, which is not actually an issue here.
+    pd.options.mode.chained_assignment = None
 
     if not inplace:
         df = df.copy()
-    new_col = f"{'-'.join(x)}_{stat}_enc"
+    new_col = f"{'_'.join(x)}__{stat}_enc"
     global_agg = getattr(df[y], stat)()
     df[new_col] = global_agg
 
@@ -205,18 +207,19 @@ def target_encode(df, x, y, n=5, stat='mean', shuffle=True, state=None,
         enc = getattr(df.iloc[train_idx, :].groupby(x)[y], stat)()
         mapped = df.loc[:, x].iloc[val_idx].apply(indexer, axis=1)
         df.loc[:, new_col].iloc[val_idx] = mapped
+    df[new_col].fillna(global_agg, inplace=True)
 
     # Encode validation set in place if it is passed in. No folds are used.
     if df_val is not None:
         enc = getattr(df.groupby(x)[y], stat)()
-        df_val[new_col] = df_val[x].apply(indexer, axis=1)
+        df_val[new_col] = df_val[x].apply(indexer, axis=1).fillna(global_agg)
 
     if not inplace:
         return df
 
 
 @pf.register_dataframe_method
-def top_categories(df, col, categories=None, threshold=None):
+def top_categories(df, col, n_categories=None, threshold=None):
     """Filter a dataframe to return rows containing the most common categories.
     This can be useful when a column has many possible values, some of which
     are extremely rare, and we want to consider only the ones that occur
@@ -230,7 +233,7 @@ def top_categories(df, col, categories=None, threshold=None):
     -----------
     col: str
         Name of column to filter on.
-    categories: int, None
+    n_categories: int, None
         Optional - # of categories to include (i.e. top 5 most common
         categories).
     threshold: int, None
@@ -241,8 +244,10 @@ def top_categories(df, col, categories=None, threshold=None):
     --------
     pd.DataFrame
     """
-    if categories is not None:
-        top = df[col].value_counts(ascending=False).head(categories).index
+    assert bool(n_categories) + bool(threshold) == 1
+
+    if n_categories is not None:
+        top = df[col].value_counts(ascending=False).head(n_categories).index
         return df[df[col].isin(top)]
     if threshold is not None:
         return df.groupby(col).filter(lambda x: len(x) >= threshold)

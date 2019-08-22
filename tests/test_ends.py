@@ -1,6 +1,7 @@
 from pandas.core.frame import DataFrame
-import pandas_htools
 import pytest
+
+import pandas_htools
 
 
 @pytest.mark.parametrize('df',
