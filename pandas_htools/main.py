@@ -1,11 +1,10 @@
-from functools import partial
-import numpy as np
 import operator
 import pandas as pd
 import pandas_flavor as pf
 from sklearn.model_selection import KFold
 
 
+@pf.register_series_method
 @pf.register_dataframe_method
 def ends(df, n=3):
     """Display the first and last few rows of a dataframe.
