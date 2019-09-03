@@ -272,10 +272,20 @@ def vcounts(df_col, **kwargs):
     """
     if 'normalize' in kwargs.keys():
         del kwargs['normalize']
-    df = pd.merge(df_col.value_counts(**kwargs),
-                  df_col.value_counts(normalize=True, **kwargs),
-                  'left', left_index=True, right_index=True,
+
+    counts = df_col.value_counts(**kwargs)
+    normed_counts = df_col.value_counts(normalize=True, **kwargs)
+
+    # Pandas seems to have problem merging on bool col/index. Could use
+    # pd.concat but unsure if order is consistent in case of ties.
+    if counts.name is None:
+        counts.name = 'raw'
+        normed_counts.name = 'normed'
+
+    df = pd.merge(counts, normed_counts,
+                  how='left', left_index=True, right_index=True,
                   suffixes=['_raw_count', '_normed_count'])\
            .reset_index()
+
     col_name = '_'.join(df.columns[1].split('_')[:-2])
     return df.rename({'index': col_name}, axis=1)
