@@ -277,4 +277,5 @@ def vcounts(df_col, **kwargs):
                   'left', left_index=True, right_index=True,
                   suffixes=['_raw_count', '_normed_count'])\
            .reset_index()
-    return df.rename({'index': df.columns[1].split('_')[0]}, axis=1)
+    col_name = '_'.join(df.columns[1].split('_')[:-2])
+    return df.rename({'index': col_name}, axis=1)
