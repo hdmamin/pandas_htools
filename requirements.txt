@@ -4,3 +4,7 @@ sphinx_rtd_theme
 nose
 coverage
 pypi-publisher
+
+# Package Usage
+pandas
+pandas_flavor
