@@ -130,7 +130,11 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
     # If adding a dummy column, it must be created before imputing null values.
     if dummy:
         df[col + '_isnull'] = df[col].isnull() * 1
+
+    # Mode returns a series, mean and median return primitives.
     fill_val = getattr(df[col], method)()
+    if method == 'mode':
+        fill_val = fill_val[0]
     df[col].fillna(fill_val, inplace=True)
 
     if not inplace:
