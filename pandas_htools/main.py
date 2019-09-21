@@ -42,6 +42,9 @@ def filter_by_count(df, col, method, value, norm=False):
         One of ('=', '<', '>', '<=', '>=').
     value: int, float
         Numeric value that each row in `col` will be compared against.
+    norm: bool
+        If True, filtering will occur on normalized values (so the value should
+        be a float between 0 and 1).
 
     Returns
     --------
