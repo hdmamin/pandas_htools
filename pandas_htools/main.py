@@ -95,7 +95,7 @@ def grouped_mode(df, xs, y):
 
 
 @pf.register_dataframe_method
-def impute(df, col, method='mean', inplace=False, dummy=True):
+def impute(df, col, fill_val=None, method='mean', inplace=False, dummy=True):
     """Fill null values in the specified column, then optionally add an
     additional column specifying whether the first column was originally null.
     This can be useful in certain machine learning problems if the fact that a
@@ -113,10 +113,14 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
     -----------
     col: str
         Name of df column to fill null values for.
+    fill_val: str, int, float, None
+        If specified, this constant value will be used to impute missing
+        values. If None, the `method` argument will be used to compute a fill
+        value.
     method: str
-        One of ('mean', 'median', 'mode'). More complex methods, such as
-        building a model to predict the missing values based on other features,
-        must be done manually.
+        One of ('mean', 'median', 'mode'). This will only be used when fill_val
+        is None. More complex methods, such as building a model to predict the
+        missing values based on other features, must be done manually.
     inplace: bool
         Specify whether to perform the operation in place (default False).
     dummy: bool
@@ -135,9 +139,10 @@ def impute(df, col, method='mean', inplace=False, dummy=True):
         df[col + '_isnull'] = df[col].isnull() * 1
 
     # Mode returns a series, mean and median return primitives.
-    fill_val = getattr(df[col], method)()
-    if method == 'mode':
-        fill_val = fill_val[0]
+    if fill_val is None:
+        fill_val = getattr(df[col], method)()
+        if method == 'mode':
+            fill_val = fill_val[0]
     df[col].fillna(fill_val, inplace=True)
 
     if not inplace:
