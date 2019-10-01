@@ -38,7 +38,7 @@ def test_impute_multi(df_nulls):
 
 def test_impute_inplace(df_nulls):
     """Fill null user ID's using median imputation."""
-    df_new = df_nulls.impute('userId', 'median')
+    df_new = df_nulls.impute('userId', method='median')
     df_nulls.impute('userId', method='median', inplace=True)
     assert df_new.equals(df_nulls)
 
