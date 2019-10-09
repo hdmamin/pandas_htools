@@ -1,3 +1,4 @@
+from IPython.display import display, HTML
 import operator
 import pandas as pd
 import pandas_flavor as pf
@@ -296,3 +297,12 @@ def vcounts(df_col, **kwargs):
 
     col_name = '_'.join(df.columns[1].split('_')[:-2])
     return df.rename({'index': col_name}, axis=1)
+
+
+@pf.register_series_method
+@pf.register_dataframe_method
+def pprint(df):
+    """Display a dataframe of series as a rendered HTML table in
+    Jupyter notebooks. Useful when printing multiple outputs in a cell.
+    """
+    display(HTML(df.to_html()))
