@@ -310,4 +310,6 @@ def pprint(df):
     """Display a dataframe of series as a rendered HTML table in
     Jupyter notebooks. Useful when printing multiple outputs in a cell.
     """
+    if isinstance(df, pd.core.series.Series):
+        df = pd.DataFrame(df)
     display(HTML(df.to_html()))
