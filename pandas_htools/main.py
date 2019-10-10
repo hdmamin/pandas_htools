@@ -313,3 +313,46 @@ def pprint(df):
     if isinstance(df, pd.core.series.Series):
         df = pd.DataFrame(df)
     display(HTML(df.to_html()))
+
+
+@pf.register_series_method
+@pf.register_dataframe_method
+def lambda_sort(df, func, **kwargs):
+    """Sort a DataFrame or Series by a function that takes itself as input.
+    For example, we can sort by the absolute value of a column or the sum of
+    2 different columns.
+    Parameters
+    -----------
+    func: function
+       Callable function or lambda expression to sort by.
+       (eg: lambda x: abs(x))
+    **kwargs: additional keyword args will be passed to the sort_values()
+       method.
+    Returns
+    --------
+    pd.DataFrame
+    Examples
+    ---------
+    >>> df = pd.DataFrame(np.arange(8).reshape((4, 2)), columns=['a', 'b'])
+    >>> df.loc[3, 'a'] *= -1
+    >>> df
+
+        a  b
+    0    0  1
+    1    2  3
+    2    4  6
+    3   -6  7
+
+    >>> df.lambda_sort(lambda x: x.a * x.b)
+
+        a  b
+    3   -6  7
+    2    0  1
+    1    2  3
+    0    4  5
+    """
+    col = 'lambda_col'
+    if isinstance(df, pd.core.series.Series):
+        df = pd.DataFrame(df)
+    df[col] = func(df)
+    return df.sort_values(col, **kwargs).drop(col, axis=1)
