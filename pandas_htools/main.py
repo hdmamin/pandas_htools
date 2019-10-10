@@ -352,6 +352,7 @@ def lambda_sort(df, func, **kwargs):
     0    4  5
     """
     col = 'lambda_col'
+    df = df.copy()
     if isinstance(df, pd.core.series.Series):
         df = pd.DataFrame(df)
     df[col] = func(df)
