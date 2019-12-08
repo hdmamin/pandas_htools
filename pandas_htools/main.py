@@ -1,6 +1,3 @@
-from IPython.core import magic_arguments
-from IPython.core.interactiveshell import InteractiveShell
-from IPython.core.magic import cell_magic, magics_class, Magics
 from IPython.display import display, HTML
 import operator
 import pandas as pd
@@ -360,16 +357,3 @@ def lambda_sort(df, func, **kwargs):
         df = pd.DataFrame(df)
     df[col] = func(df)
     return df.sort_values(col, **kwargs).drop(col, axis=1)
-
-
-@magics_class
-class InteractiveMagic(Magics):
-
-    @cell_magic
-    def talk(self):
-        InteractiveShell.ast_node_interactivity = 'all'
-        print('Interactive Mode')
-
-
-ip = get_ipython()
-ip.register_magics(InteractiveMagic)
