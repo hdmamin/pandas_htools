@@ -1,4 +1,6 @@
+from functools import partial
 from IPython.display import display, HTML
+import numpy as np
 import operator
 import pandas as pd
 import pandas_flavor as pf
@@ -328,9 +330,11 @@ def lambda_sort(df, func, **kwargs):
        (eg: lambda x: abs(x))
     **kwargs: additional keyword args will be passed to the sort_values()
        method.
+
     Returns
     --------
     pd.DataFrame
+
     Examples
     ---------
     >>> df = pd.DataFrame(np.arange(8).reshape((4, 2)), columns=['a', 'b'])
@@ -357,3 +361,28 @@ def lambda_sort(df, func, **kwargs):
         df = pd.DataFrame(df)
     df[col] = func(df)
     return df.sort_values(col, **kwargs).drop(col, axis=1)
+
+
+@pf.register_dataframe_method
+def coalesce(df, cols):
+    """Create a column where each row contains the first non-null value for
+    that row from a list of columns.
+
+    Parameters
+    ----------
+    cols: list[str]
+        Names of columns to coalesce over.
+
+    Returns
+    -------
+    pd.Series
+    """
+
+    def _coalesce(row, cols):
+        row_ = row[cols]
+        not_null = row_[row_.notnull()]
+        if not_null.empty:
+            return np.nan
+        return not_null[0]
+
+    return df.apply(partial(_coalesce, cols=cols), axis=1)
