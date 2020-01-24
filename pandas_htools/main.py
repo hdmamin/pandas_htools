@@ -386,3 +386,52 @@ def coalesce(df, cols):
         return not_null[0]
 
     return df.apply(partial(_coalesce, cols=cols), axis=1)
+
+
+@pf.register_series_method
+def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False, 
+              null=''):
+    """Converts a df column of lists, possibly containing np.nan's, to strings.
+
+    Parameters
+    -----------
+    join: bool
+        If True, create the string by joining all items in each list/row. If
+        False, simply return the first item in each list. Default True.
+    ignore_terms: list, set
+        Terms to drop from the column. If None, all terms will be retained.
+        Ex: {'width=device-width'}
+    greedy_ignore: bool
+        If True, ignore_terms can be a list of prefixes. In other words, 
+        we will remove any strings in the list column that start with one of
+        the ignore_terms even (as opposed to requiring an exact match.)
+    null: str
+        The value to replace null values with. For many pandas string methods,
+        it is beneficial for this to be a string rather than np.nan.
+        
+    Returns
+    -------
+    pd.Series
+    """
+    ignore_terms = dict.fromkeys(ignore_terms or [])
+    
+    def process(x, join, ignore_terms, greedy_ignore, null):
+        # Handles both np.nan and empty lists.
+        if not isinstance(x, list) or not x:
+            return null
+
+        # Dict instead of set to maintain order (dict-key operations would still change order). 
+        x = dict.fromkeys(map(str, x))
+        if greedy_ignore:
+            x = (term for term in x if not term.startswith(tuple(ignore_terms)))
+        else:
+            x = (term for term in x if term not in ignore_terms)
+
+        # Return a string.
+        if join:
+            return ' '.join(x)
+        else:
+            return next(x)
+    
+    return list_col.map(partial(process, join=join, ignore_terms=ignore_terms, 
+                                greedy_ignore=greedy_ignore, null=null))

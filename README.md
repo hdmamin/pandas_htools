@@ -1,7 +1,7 @@
 Pandas Extension
 ===============================
 
-version number: 0.0.1
+version number: 0.0.3
 author: Harrison Mamin
 
 Overview
