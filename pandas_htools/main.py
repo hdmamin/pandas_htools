@@ -377,15 +377,13 @@ def coalesce(df, cols):
     -------
     pd.Series
     """
-
-    def _coalesce(row, cols):
-        row_ = row[cols]
-        not_null = row_[row_.notnull()]
-        if not_null.empty:
-            return np.nan
-        return not_null[0]
-
-    return df.apply(partial(_coalesce, cols=cols), axis=1)
+    new_col = df[cols[0]].copy()
+    i = 1
+    while new_col.isnull().sum() > 0 and i < len(cols):
+        next_col = cols[i]
+        new_col.fillna(df[next_col], inplace=True)
+        i += 1
+    return new_col
 
 
 @pf.register_series_method
@@ -420,7 +418,8 @@ def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False,
         if not isinstance(x, list) or not x:
             return null
 
-        # Dict instead of set to maintain order (dict-key operations would still change order). 
+        # Dict instead of set to maintain order
+        # (dict-key operations would still change order).
         x = dict.fromkeys(map(str, x))
         if greedy_ignore:
             x = (term for term in x if not term.startswith(tuple(ignore_terms)))
