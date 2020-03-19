@@ -387,7 +387,7 @@ def coalesce(df, cols):
 
 
 @pf.register_series_method
-def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False, 
+def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False,
               null=''):
     """Converts a df column of lists, possibly containing np.nan's, to strings.
 
@@ -400,19 +400,19 @@ def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False,
         Terms to drop from the column. If None, all terms will be retained.
         Ex: {'width=device-width'}
     greedy_ignore: bool
-        If True, ignore_terms can be a list of prefixes. In other words, 
+        If True, ignore_terms can be a list of prefixes. In other words,
         we will remove any strings in the list column that start with one of
         the ignore_terms even (as opposed to requiring an exact match.)
     null: str
         The value to replace null values with. For many pandas string methods,
         it is beneficial for this to be a string rather than np.nan.
-        
+
     Returns
     -------
     pd.Series
     """
     ignore_terms = dict.fromkeys(ignore_terms or [])
-    
+
     def process(x, join, ignore_terms, greedy_ignore, null):
         # Handles both np.nan and empty lists.
         if not isinstance(x, list) or not x:
@@ -431,6 +431,27 @@ def stringify(list_col, join=True, ignore_terms=None, greedy_ignore=False,
             return ' '.join(x)
         else:
             return next(x)
-    
-    return list_col.map(partial(process, join=join, ignore_terms=ignore_terms, 
+
+    return list_col.map(partial(process, join=join, ignore_terms=ignore_terms,
                                 greedy_ignore=greedy_ignore, null=null))
+
+
+@pf.register_series_method
+def is_list_col(col):
+    """Determine whether a column is a list column. These are columns
+    resulting from the protobuf format, where we end up with a situation
+    where rows either contains lists or np.nan.
+
+    Parameters
+    -----------
+    col: pd.Series
+        The column to evaluate.
+
+    Returns
+    --------
+    bool
+    """
+    # Filter out nulls first otherwise type could be np.nan instead of list.
+    no_nulls = col.dropna()
+    return not no_nulls.empty and isinstance(no_nulls.iloc[0], list)
+
