@@ -28,13 +28,15 @@ class DataFrameReader:
         self.s3_root = s3_root
         self.s3_pre = f's3://{self.bucket}/'
 
-    def read_csv(self, path, **kwargs):
+    def read_csv(self, path, verbose=True, **kwargs):
         """Try to read a csv locally, or from S3 if that fails.
 
         Parameters
         ----------
         path: str or path
             Local file to load.
+        verbose: bool
+            If True, print message after loading.
         kwargs: any
             Additional kwargs for `pd.read_csv()`.
 
@@ -44,10 +46,10 @@ class DataFrameReader:
         """
         try:
             df = pd.read_csv(path, **kwargs)
-            print('Loaded data from local file.')
+            if verbose: print(f'Loaded {df.shape[0]} rows from local file.')
         except FileNotFoundError:
-            print('File not found locally. Loading from S3.')
             df = pd.read_csv(self._convert_path(path), **kwargs)
+            if verbose: print(f'Loaded {df.shape[0]} rows from S3.')
         return df
 
     def _convert_path(self, path):
